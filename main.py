@@ -347,12 +347,27 @@ def main(_user_info: object):
     if not get_other_info(_user_info):
         return False
     print_info(_user_info)
-    _path = settings['save_path'] + _user_info.name + " (@" + _user_info.screen_name + ")"
-    if not os.path.exists(_path):   #创建文件夹
-        os.makedirs(settings['save_path']+ _user_info.name + " (@" + _user_info.screen_name + ")")       #用户名建文件夹
-        _user_info.save_path = settings['save_path']+ _user_info.name + " (@" + _user_info.screen_name + ")"
-    else:
+    _path = settings['save_path'] + _user_info.name + " (@" + _user_info.screen_name + ")" # 昵称+用户名建文件夹
+    # 首先判断目标文件夹是否存在
+    if os.path.exists(_path):
         _user_info.save_path = _path
+    else:
+        # 如果目标文件夹不存在，检查是否有包含screen_name的旧格式文件夹
+        save_dir = settings['save_path']
+        if os.path.exists(save_dir):
+            # 遍历保存目录下的所有文件夹
+            for item in os.listdir(save_dir):
+                item_path = os.path.join(save_dir, item)
+                # 检查是否为目录且包含screen_name
+                if os.path.isdir(item_path) and _user_info.screen_name in item:
+                    # 如果存在包含screen_name的旧格式文件夹，则重命名为新格式
+                    os.rename(item_path, _path)
+                    _user_info.save_path = _path
+                    break
+        else:
+            # 如果保存目录不存在，则创建目标文件夹
+            os.makedirs(_path)
+            _user_info.save_path = _path
 
     if not has_likes:
         global csv_file
