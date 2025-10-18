@@ -1,11 +1,11 @@
 {
-    "save_path": "",
+    "save_path": "/media/nasDisk2/Media/twitter/twitter_download",
     "save_path_info": "就算是windows路径也请用 '/' ,而不是反斜杠(可以留空)",
 
-    "user_lst": "lilmonix3,matchach",
-    "user_lst_info": "填入要下载的用户名(@后面的字符),支持多用户下载,用户名字间逗号(英文逗号,不要有空格)隔开",
+    "user_lst": "mila_azul",
+    "user_lst_info": "填入要下载的用户名(@后面的字符),支持多用户下载,用户名字间逗号(英文逗号,不要有空格)隔开 mila_azul,MilaAzulChan,skyebluewantsu,Sweet_BunnyXXX,chengzimiaoj,JULIA_1stid,JULIA2_off,hatano_yui,asukakiraran,yua_mikami,Anaimiya,Rin_hachimitu,OTSUKI221HIBIKI,kaede_fu_a,Saika_Kawakita,fukada0318,Mio_Kimijima,Kana_Momonogi,asagiri_akari,amatsuka_moe,airi_kijima",
 
-    "cookie": "auth_token=xxxxxxxxxxx; ct0=xxxxxxxxxxx;",
+    "cookie": "auth_token=70d9b0fff934d9675933664d54c740d7e4f5d4f0; ct0=64a8fa37a27244da3100963bcc4a508fa4f647f8588f1063a35e28b3951fd396af11f3bb80ea6e5116ed2fd35a66925c5a81722676865d485e70a0762ab202547f515b1b7d9e1831ce58fa04f667049f;",
     "cookie_info": "填入 cookie (auth_token与ct0字段) //重要:替换掉其中的x即可, 注意不要删掉分号",
 
 
@@ -26,7 +26,7 @@
     "time_range": "1990-01-01:2030-01-01",
     "time_range_info": "时间范围限制,格式如 1990-01-01:2030-01-01 ,不填默认无限制",
 
-    "down_log": false,
+    "down_log": true,
     "down_log_info": "开启后将记录已下载的内容,避免重复下载浪费带宽; 注意:如需重新下载已下载内容,需要关闭此选项或删除目录下的 cache_data.log 文件",
 
     "autoSync": false,
@@ -38,13 +38,13 @@
     "has_video": true,
     "has_video_info": "是否下载推文中的视频",
 
-    "log_output": false,
+    "log_output": true,
     "log_output_info": "是否需要下载过程日志输出",
 
     "async_down": true,
     "async_down_info": "异步下载,默认开启,网络不好时可以关闭,并发数量可在主函数11行修改",
 
-    "proxy": "",
+    "proxy": "http://127.0.0.1:7890",
     "proxy_info": "手动配置代理,默认为空,非必要无需填写 格式: http://localhost:port ",
 
 
