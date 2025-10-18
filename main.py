@@ -347,10 +347,10 @@ def main(_user_info: object):
     if not get_other_info(_user_info):
         return False
     print_info(_user_info)
-    _path = settings['save_path'] + _user_info.screen_name
+    _path = settings['save_path'] + _user_info.name + " (@" + _user_info.screen_name + ")"
     if not os.path.exists(_path):   #创建文件夹
-        os.makedirs(settings['save_path']+_user_info.screen_name)       #用户名建文件夹
-        _user_info.save_path = settings['save_path']+_user_info.screen_name
+        os.makedirs(settings['save_path']+ _user_info.name + " (@" + _user_info.screen_name + ")")       #用户名建文件夹
+        _user_info.save_path = settings['save_path']+ _user_info.name + " (@" + _user_info.screen_name + ")"
     else:
         _user_info.save_path = _path
 
