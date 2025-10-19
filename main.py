@@ -344,6 +344,7 @@ def main(_user_info: object):
     re_token = 'ct0=(.*?);'
     _headers['x-csrf-token'] = re.findall(re_token,_headers['cookie'])[0]
     _headers['referer'] = 'https://twitter.com/' + _user_info.screen_name
+    _is_create_folder = True
     if not get_other_info(_user_info):
         return False
     print_info(_user_info)
@@ -363,11 +364,13 @@ def main(_user_info: object):
                     # 如果存在包含screen_name的旧格式文件夹，则重命名为新格式
                     os.rename(item_path, _path)
                     _user_info.save_path = _path
+                    _is_create_folder = False
                     break
-        else:
-            # 如果保存目录不存在，则创建目标文件夹
-            os.makedirs(_path)
-            _user_info.save_path = _path
+
+            if _is_create_folder:
+                # 如果保存目录不存在，则创建目标文件夹
+                os.makedirs(_path)
+                _user_info.save_path = _path
 
     if not has_likes:
         global csv_file
