@@ -9,6 +9,7 @@ from user_info import User_info
 from csv_gen import csv_gen
 from cache_gen import cache_gen
 from url_utils import quote_url
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 max_concurrent_requests = 8     #最大并发数量，默认为8，对自己网络有自信的可以调高; 遇到多次下载失败时适当降低
 
@@ -135,6 +136,7 @@ def print_info(_user_info):
         '''
     )
 
+@retry(stop=stop_after_attempt(10), wait=wait_fixed(2))
 def get_download_url(_user_info):
 
     def get_heighest_video_quality(variants) -> str:   #找到最高质量的视频地址,并返回
