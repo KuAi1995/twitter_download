@@ -1,15 +1,12 @@
 import httpx
-
 import asyncio
-import re
 import os
 import csv
-import time
 import json
 import hashlib
 from datetime import datetime
 from urllib.parse import quote
-from url_utils import quote_url
+from utils import quote_url, stamp2time, del_special_char_with_hash, get_heighest_video_quality, stamp2time_csv, build_headers
 
 
 ##########配置区域##########
@@ -31,7 +28,7 @@ media_latest = False
 
 # ------------------------ #
 
-text_down = False 
+text_down = False
 # 开启后变为文本下载模式，会消耗大量API次数
 # 开启文本下载时 不要包含 filter:links
 
@@ -51,35 +48,11 @@ else:
 _filter = ' ' + _filter
 
 
-
-def del_special_char(string):
-    string = re.sub(r'[^#\u4e00-\u9fa5\u0030-\u0039\u0041-\u005a\u0061-\u007a\u3040-\u31FF\.]', '', string)
-    return string
-
-def stamp2time(msecs_stamp:int) -> str:
-    timeArray = time.localtime(msecs_stamp/1000)
-    otherStyleTime = time.strftime("%Y-%m-%d %H-%M", timeArray)
-    return otherStyleTime
-
 def hash_save_token(media_url):
     m = hashlib.md5()
     m.update(f'{media_url}'.encode('utf-8'))
     return m.hexdigest()[:4]
 
-
-def get_heighest_video_quality(variants) -> str:   #找到最高质量的视频地址,并返回
-
-        if len(variants) == 1:      #gif适配
-            return variants[0]['url']
-        
-        max_bitrate = 0
-        heighest_url = None
-        for i in variants:
-            if 'bitrate' in i:
-                if int(i['bitrate']) > max_bitrate:
-                    max_bitrate = int(i['bitrate'])
-                    heighest_url = i['url']
-        return heighest_url
 
 def download_control(folder_path, photo_lst):
     async def _main():
@@ -94,69 +67,61 @@ def download_control(folder_path, photo_lst):
                     print(e)
                     return False
             count = 0
-            while True:
+            while count < 10:
                 try:
                     async with semaphore:
                         async with httpx.AsyncClient() as client:
-                            response = await client.get(quote_url(url), timeout=(3.05, 16))        #如果出现第五次或以上的下载失败,且确认不是网络问题,可以适当降低最大并发数量
-                    with open(_file_name,'wb') as f:
+                            response = await client.get(quote_url(url), timeout=(3.05, 16))
+                    with open(_file_name, 'wb') as f:
                         f.write(response.content)
                     break
                 except Exception as e:
                     count += 1
                     print(e)
                     print(f'{_file_name}=====>第{count}次下载失败,正在重试')
+            else:
+                print(f'{_file_name}=====>超过最大重试次数,已跳过')
 
         semaphore = asyncio.Semaphore(max_concurrent_requests)
-        await asyncio.gather(*[asyncio.create_task(down_save(url[0], folder_path, url[1], url[2])) for url in photo_lst])   #0:url 1:time_stamp 2:user_name
+        await asyncio.gather(*[asyncio.create_task(down_save(url[0], folder_path, url[1], url[2])) for url in photo_lst])
 
     asyncio.run(_main())
 
-class csv_gen():
-    def __init__(self, save_path:str) -> None:
+
+class tag_csv_gen():
+    def __init__(self, save_path: str) -> None:
         self.f = open(f'{save_path}/{datetime.now().strftime("%Y-%m-%d %H-%M-%S")}-text.csv', 'w', encoding='utf-8-sig', newline='')
         self.writer = csv.writer(self.f)
 
-        #初始化
         self.writer.writerow(['Run Time : ' + datetime.now().strftime('%Y-%m-%d %H-%M-%S')])
-        main_par = ['Tweet Date', 'Display Name', 'User Name', 'Tweet URL', 'Tweet Content', 'Favorite Count', 
+        main_par = ['Tweet Date', 'Display Name', 'User Name', 'Tweet URL', 'Tweet Content', 'Favorite Count',
                     'Retweet Count', 'Reply Count']
         self.writer.writerow(main_par)
 
     def csv_close(self):
         self.f.close()
 
-    def stamp2time(self, msecs_stamp:int) -> str:
-        timeArray = time.localtime(msecs_stamp/1000)
-        otherStyleTime = time.strftime("%Y-%m-%d %H:%M", timeArray)
-        return otherStyleTime
-    
-    def data_input(self, main_par_info:list) -> None:   #数据格式参见 main_par
-        main_par_info[0] = self.stamp2time(main_par_info[0])    #传进来的是 int 时间戳, 故转换一下
+    def data_input(self, main_par_info: list) -> None:
+        main_par_info[0] = stamp2time_csv(main_par_info[0])
         self.writer.writerow(main_par_info)
+
 
 class tag_down():
     def __init__(self):
-        self.folder_path = os.getcwd() + os.sep + del_special_char(tag) + os.sep
+        self.folder_path = os.getcwd() + os.sep + del_special_char_with_hash(tag) + os.sep
 
-        if not os.path.exists(self.folder_path):   #创建文件夹
+        if not os.path.exists(self.folder_path):
             os.makedirs(self.folder_path)
 
         if text_down:
-            self.csv = csv_gen(self.folder_path)
+            self.csv = tag_csv_gen(self.folder_path)
 
-        self._headers = {
-            'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
-            'authorization':'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA',
-        }
-        self._headers['cookie'] = cookie
-        re_token = 'ct0=(.*?);'
-        self._headers['x-csrf-token'] = re.findall(re_token, cookie)[0]
+        self._headers = build_headers(cookie)
         self._headers['referer'] = f'https://twitter.com/search?q={quote(tag + _filter)}&src=typed_query&f=media'
 
         self.cursor = ''
 
-        for i in range(down_count//entries_count):
+        for i in range(down_count // entries_count):
             url = 'https://twitter.com/i/api/graphql/tUJgNbJvuiieOXvq7OmHwA/SearchTimeline?variables={"rawQuery":"' + quote(tag + _filter) + '","count":' + str(entries_count) + ',"cursor":"' + self.cursor + '","querySource":"typed_query","product":"' + product + '"}&features={"rweb_tipjar_consumption_enabled":true,"responsive_web_graphql_exclude_directive_enabled":true,"verified_phone_label_enabled":false,"creator_subscriptions_tweet_preview_api_enabled":true,"responsive_web_graphql_timeline_navigation_enabled":true,"responsive_web_graphql_skip_user_profile_image_extensions_enabled":false,"communities_web_enable_tweet_community_results_fetch":true,"c9s_tweet_anatomy_moderator_badge_enabled":true,"articles_preview_enabled":true,"tweetypie_unmention_optimization_enabled":true,"responsive_web_edit_tweet_api_enabled":true,"graphql_is_translatable_rweb_tweet_is_translatable_enabled":true,"view_counts_everywhere_api_enabled":true,"longform_notetweets_consumption_enabled":true,"responsive_web_twitter_article_tweet_consumption_enabled":true,"tweet_awards_web_tipping_enabled":false,"creator_subscriptions_quote_tweet_preview_enabled":false,"freedom_of_speech_not_reach_fetch_enabled":true,"standardized_nudges_misinfo":true,"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled":true,"tweet_with_visibility_results_prefer_gql_media_interstitial_enabled":true,"rweb_video_timestamps_enabled":true,"longform_notetweets_rich_text_read_enabled":true,"longform_notetweets_inline_media_enabled":true,"responsive_web_enhance_cards_enabled":false}'
             url = quote_url(url)
             if text_down:
@@ -174,7 +139,6 @@ class tag_down():
             self.csv.csv_close()
 
     def search_media(self, url):
-        #接收某页链接，返回该页所有图片地址
         media_lst = []
 
         response = httpx.get(url, headers=self._headers).text
@@ -187,7 +151,7 @@ class tag_down():
                 print('获取数据失败')
             print(response)
             return
-        if not self.cursor: #第一次
+        if not self.cursor:
             raw_data = raw_data['data']['search_by_raw_query']['search_timeline']['timeline']['instructions'][-1]['entries']
             if len(raw_data) == 2:
                 return
@@ -205,11 +169,11 @@ class tag_down():
             tweet = tweet['item']['itemContent']['tweet_results']['result']
             try:
                 screen_name = '@' + tweet['core']['user_results']['result']['legacy']['screen_name']
-            except Exception:   #低概率事件
+            except Exception:
                 continue
             try:
                 time_stamp = int(tweet['edit_control']['editable_until_msecs']) - 3600000
-            except Exception as e:
+            except Exception:
                 if 'edit_control_initial' in tweet['edit_control']:
                     time_stamp = int(tweet['edit_control']['edit_control_initial']['editable_until_msecs']) - 3600000
                 else:
@@ -225,13 +189,13 @@ class tag_down():
             except Exception as e:
                 print(e)
         return media_lst
-    
+
     def search_media_latest(self, url):
         media_lst = []
 
         response = httpx.get(url, headers=self._headers).text
         raw_data = json.loads(response)
-        if not self.cursor: #第一次
+        if not self.cursor:
             raw_data = raw_data['data']['search_by_raw_query']['search_timeline']['timeline']['instructions'][-1]['entries']
             if len(raw_data) == 2:
                 return
@@ -244,18 +208,18 @@ class tag_down():
                 raw_data_lst = raw_data[0]['entries']
             else:
                 return
-            
+
         for tweet in raw_data_lst:
             if 'promoted' in tweet['entryId']:
                 continue
             tweet = tweet['content']['itemContent']['tweet_results']['result']
             try:
                 screen_name = '@' + tweet['core']['user_results']['result']['legacy']['screen_name']
-            except Exception:   #低概率事件
+            except Exception:
                 continue
             try:
                 time_stamp = int(tweet['edit_control']['editable_until_msecs']) - 3600000
-            except Exception as e:
+            except Exception:
                 if 'edit_control_initial' in tweet['edit_control']:
                     time_stamp = int(tweet['edit_control']['edit_control_initial']['editable_until_msecs']) - 3600000
                 else:
@@ -268,21 +232,17 @@ class tag_down():
                     else:
                         media_url = _media['media_url_https']
                     media_lst.append([media_url, time_stamp, screen_name])
-
             except KeyError:
-                # 仍存在部分纯文本推文无法排除
                 pass
             except Exception as e:
                 print(e)
 
         return media_lst
-    
-    def search_save_text(self, url):
-        #接收某页链接，保存所有文本内容
 
+    def search_save_text(self, url):
         response = httpx.get(url, headers=self._headers).text
         raw_data = json.loads(response)
-        if not self.cursor: #第一次
+        if not self.cursor:
             raw_data = raw_data['data']['search_by_raw_query']['search_timeline']['timeline']['instructions'][-1]['entries']
             if len(raw_data) == 2:
                 return
@@ -292,7 +252,7 @@ class tag_down():
             raw_data = raw_data['data']['search_by_raw_query']['search_timeline']['timeline']['instructions']
             self.cursor = raw_data[-1]['entry']['content']['value']
             raw_data_lst = raw_data[0]['entries']
-            
+
         for tweet in raw_data_lst:
             if 'promoted' in tweet['entryId']:
                 continue
@@ -309,9 +269,9 @@ class tag_down():
             try:
                 display_name = tweet['core']['user_results']['result']['legacy']['name']
                 screen_name = '@' + tweet['core']['user_results']['result']['legacy']['screen_name']
-            except Exception:   #低概率事件
+            except Exception:
                 continue
-            
+
             try:
                 Favorite_Count = tweet['legacy']['favorite_count']
                 Retweet_Count = tweet['legacy']['retweet_count']
