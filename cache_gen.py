@@ -1,6 +1,7 @@
 import os
 import pickle
 
+
 class cache_gen():
 
     def __init__(self, save_path) -> None:
@@ -12,9 +13,12 @@ class cache_gen():
         else:
             self.cache_data = set()
 
-    def __del__(self):
+    def save(self):
         with open(self.cache_path, 'wb') as f:
             pickle.dump(self.cache_data, f)
+
+    def __del__(self):
+        self.save()
 
     def add(self, element):
         self.cache_data.add(element)
@@ -25,5 +29,3 @@ class cache_gen():
         else:
             self.add(element)
             return True
-
-
