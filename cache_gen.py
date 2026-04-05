@@ -13,12 +13,21 @@ class cache_gen():
         else:
             self.cache_data = set()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.save()
+
     def save(self):
         with open(self.cache_path, 'wb') as f:
             pickle.dump(self.cache_data, f)
 
     def __del__(self):
-        self.save()
+        try:
+            self.save()
+        except Exception:
+            pass
 
     def add(self, element):
         self.cache_data.add(element)

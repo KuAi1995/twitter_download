@@ -15,6 +15,12 @@ class csv_gen():
                     'Retweet Count', 'Reply Count']
         self.writer.writerow(main_par)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.csv_close()
+
     def csv_close(self):
         self.f.close()
 
