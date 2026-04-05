@@ -58,6 +58,8 @@ def get_heighest_video_quality(variants) -> str:
 def get_other_info(_user_info, _headers, proxies=None):
     import httpx
     import json
+    import logging
+    logger = logging.getLogger(__name__)
     url = 'https://twitter.com/i/api/graphql/xc8f1g7BYqr6VTzTbvNlGw/UserByScreenName?variables={"screen_name":"' + _user_info.screen_name + '","withSafetyModeUserFields":false}&features={"hidden_profile_likes_enabled":false,"hidden_profile_subscriptions_enabled":false,"responsive_web_graphql_exclude_directive_enabled":true,"verified_phone_label_enabled":false,"subscriptions_verification_info_verified_since_enabled":true,"highlights_tweets_tab_ui_enabled":true,"creator_subscriptions_tweet_preview_api_enabled":true,"responsive_web_graphql_skip_user_profile_image_extensions_enabled":false,"responsive_web_graphql_timeline_navigation_enabled":true}&fieldToggles={"withAuxiliaryUserLabels":false}'
     try:
         response = httpx.get(quote_url(url), headers=_headers, proxy=proxies).text
@@ -66,9 +68,12 @@ def get_other_info(_user_info, _headers, proxies=None):
         _user_info.name = raw_data['data']['user']['result']['legacy']['name']
         _user_info.statuses_count = raw_data['data']['user']['result']['legacy']['statuses_count']
         _user_info.media_count = raw_data['data']['user']['result']['legacy']['media_count']
-    except Exception:
-        print('获取信息失败')
-        print(response)
+    except (json.JSONDecodeError, KeyError) as e:
+        logger.error(f'获取用户 {_user_info.screen_name} 信息失败: {e}')
+        logger.debug(f'响应内容: {response}')
+        return False
+    except httpx.HTTPError as e:
+        logger.error(f'网络请求失败: {e}')
         return False
     return True
 

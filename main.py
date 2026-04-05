@@ -4,11 +4,15 @@ import httpx
 import asyncio
 import os
 import json
+import logging
 from user_info import User_info
 from csv_gen import csv_gen
 from cache_gen import cache_gen
 from utils import quote_url, stamp2time, time2stamp, time_comparison, get_heighest_video_quality, build_headers, print_info, get_other_info
 from tenacity import retry, stop_after_attempt, wait_fixed
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 class TwitterDownloader:
@@ -124,7 +128,7 @@ class TwitterDownloader:
 
             return _photo_lst
 
-        print(f'已下载图片/视频:{_user_info.count}')
+        logger.info(f'已下载图片/视频:{_user_info.count}')
         if self.has_highlights:
             url_top = 'https://twitter.com/i/api/graphql/w9-i9VNm_92GYFaiyGT1NA/UserHighlightsTweets?variables={"userId":"' + _user_info.rest_id + '","count":20,'
             url_bottom = '"includePromotedContent":true,"withVoice":true}&features={"responsive_web_graphql_exclude_directive_enabled":true,"verified_phone_label_enabled":false,"creator_subscriptions_tweet_preview_api_enabled":true,"responsive_web_graphql_timeline_navigation_enabled":true,"responsive_web_graphql_skip_user_profile_image_extensions_enabled":false,"c9s_tweet_anatomy_moderator_badge_enabled":true,"tweetypie_unmention_optimization_enabled":true,"responsive_web_edit_tweet_api_enabled":true,"graphql_is_translatable_rweb_tweet_is_translatable_enabled":true,"view_counts_everywhere_api_enabled":true,"longform_notetweets_consumption_enabled":true,"responsive_web_twitter_article_tweet_consumption_enabled":false,"tweet_awards_web_tipping_enabled":false,"freedom_of_speech_not_reach_fetch_enabled":true,"standardized_nudges_misinfo":true,"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled":true,"rweb_video_timestamps_enabled":true,"longform_notetweets_rich_text_read_enabled":true,"longform_notetweets_inline_media_enabled":true,"responsive_web_media_download_video_enabled":false,"responsive_web_enhance_cards_enabled":false}'
@@ -147,12 +151,12 @@ class TwitterDownloader:
             self.request_count += 1
             try:
                 raw_data = json.loads(response)
-            except Exception:
+            except json.JSONDecodeError:
                 if 'Rate limit exceeded' in response:
-                    print('API次数已超限')
+                    logger.error('API次数已超限')
                 else:
-                    print('获取数据失败')
-                print(response)
+                    logger.error('获取数据失败')
+                logger.debug(response)
                 return
             if self.has_highlights:
                 raw_data = raw_data['data']['user']['result']['timeline']['timeline']['instructions'][-1]['entries']
@@ -184,10 +188,12 @@ class TwitterDownloader:
 
             if not photo_lst:
                 photo_lst.append(True)
+        except (KeyError, TypeError) as e:
+            logger.error(f'获取推文信息错误: {e}')
+            logger.debug(response)
+            return False
         except Exception as e:
-            print('获取推文信息错误')
-            print(e)
-            print(response)
+            logger.error(f'获取推文信息未知错误: {e}')
             return False
         return photo_lst
 
@@ -203,7 +209,7 @@ class TwitterDownloader:
                         _file_name = f'{_user_info.save_path + os.sep}{prefix}_{_user_info.count + order}.{downloader.img_format}'
                         url += f'?format={downloader.img_format}&name=4096x4096'
                     except Exception as e:
-                        print(url)
+                        logger.warning(f'文件名生成失败: {url}')
                         return False
                 count = 0
                 while count < 10:
@@ -220,15 +226,14 @@ class TwitterDownloader:
                             downloader.csv_file.data_input(csv_info)
 
                         if downloader.log_output:
-                            print(f'{_file_name}=====>下载完成')
+                            logger.info(f'{_file_name}=====>下载完成')
 
                         break
                     except Exception as e:
                         count += 1
-                        print(f'{_file_name}=====>第{count}次下载失败,正在重试')
-                        print(url)
+                        logger.warning(f'{_file_name}=====>第{count}次下载失败,正在重试: {e}')
                 else:
-                    print(f'{_file_name}=====>超过最大重试次数,已跳过')
+                    logger.error(f'{_file_name}=====>超过最大重试次数,已跳过')
 
             while True:
                 photo_lst = downloader.get_download_url(_user_info)
@@ -303,13 +308,13 @@ class TwitterDownloader:
         if self.down_log:
             self.cache_data.save()
             self.cache_data = None
-        print(f'{_user_info.name}下载完成\n\n')
+        logger.info(f'{_user_info.name}下载完成')
 
     def run(self):
         _start = time.time()
         for i in self.settings['user_lst'].split(','):
             self.run_user(User_info(i))
-        print(f'共耗时:{time.time() - _start}秒\n共调用{self.request_count}次API\n共下载{self.down_count}份图片/视频')
+        logger.info(f'共耗时:{time.time() - _start:.1f}秒 | 共调用{self.request_count}次API | 共下载{self.down_count}份图片/视频')
 
 
 if __name__ == '__main__':
