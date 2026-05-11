@@ -1,0 +1,22 @@
+{
+    "save_path": "",
+    "user_lst": "",
+    "cookie": "auth_token=YOUR_AUTH_TOKEN; ct0=YOUR_CT0;",
+    "has_retweet": false,
+    "high_lights": false,
+    "likes": false,
+    "time_range": "1990-01-01:2030-01-01",
+    "down_log": true,
+    "autoSync": false,
+    "img_format": "png",
+    "has_video": true,
+    "log_output": true,
+    "async_down": true,
+    "max_concurrent": 8,
+    "proxy": "",
+    "tag": "",
+    "tag_filter": "",
+    "tag_count": 100,
+    "tag_media_latest": false,
+    "text_mode": false
+}
